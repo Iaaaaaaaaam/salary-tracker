@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>每秒薪水显示器</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding-top: 50px; }
+    input { font-size: 20px; padding: 5px; width: 150px; }
+    button { font-size: 20px; padding: 5px 10px; }
+    h2 { font-size: 32px; margin-top: 30px; }
+  </style>
+</head>
+<body>
+
+  <h1>💰 实时每秒薪水显示器</h1>
+  <p>请输入月薪（人民币）：</p>
+  <input type="number" id="salaryInput" placeholder="如 10000">
+  <button onclick="startSalaryCounter()">开始计算</button>
+
+  <h2 id="output">你现在已经赚了：¥0.00</h2>
+
+  <script>
+    let intervalId;
+    let total = 0;
+
+    function startSalaryCounter() {
+      clearInterval(intervalId);
+      const salary = parseFloat(document.getElementById('salaryInput').value);
+      if (isNaN(salary) || salary <= 0) {
+        alert("请输入有效的月薪金额");
+        return;
+      }
+
+      const perSecond = salary / (30 * 24 * 60 * 60); // 月薪除以2592000秒
+      total = 0;
+      intervalId = setInterval(() => {
+        total += perSecond;
+        document.getElementById('output').innerText = `你现在已经赚了：¥${total.toFixed(2)}`;
+      }, 1000);
+    }
+  </script>
+
+</body>
+</html>
