@@ -5,39 +5,98 @@
   <title>每秒薪水显示器</title>
   <style>
     body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-    input { font-size: 20px; padding: 5px; width: 150px; }
-    button { font-size: 20px; padding: 5px 10px; }
+    input, button { font-size: 20px; padding: 5px; margin: 5px; }
     h2 { font-size: 32px; margin-top: 30px; }
   </style>
 </head>
 <body>
 
   <h1>💰 实时每秒薪水显示器</h1>
-  <p>请输入月薪（人民币）：</p>
-  <input type="number" id="salaryInput" placeholder="如 10000">
-  <button onclick="startSalaryCounter()">开始计算</button>
 
-  <h2 id="output">你现在已经赚了：¥0.00</h2>
+  <!-- 登录/注册区域 -->
+  <div id="loginArea">
+    <p>请输入用户名登录（无需密码）：</p>
+    <input type="text" id="usernameInput" placeholder="用户名">
+    <button onclick="login()">登录</button>
+  </div>
+
+  <!-- 主界面区域 -->
+  <div id="mainArea" style="display:none;">
+    <p>当前用户：<span id="currentUser"></span></p>
+    <p>月薪（元）：<input type="number" id="salaryInput" placeholder="如 10000"></p>
+    <button onclick="setSalary()">更新月薪</button>
+
+    <h2 id="output">你现在已经赚了：¥0.00</h2>
+  </div>
 
   <script>
     let intervalId;
-    let total = 0;
 
-    function startSalaryCounter() {
-      clearInterval(intervalId);
+    function login() {
+      const username = document.getElementById('usernameInput').value.trim();
+      if (!username) return alert("请输入用户名");
+
+      localStorage.setItem('username', username);
+      document.getElementById('loginArea').style.display = 'none';
+      document.getElementById('mainArea').style.display = 'block';
+      document.getElementById('currentUser').innerText = username;
+
+      loadUserData();
+    }
+
+    function setSalary() {
       const salary = parseFloat(document.getElementById('salaryInput').value);
       if (isNaN(salary) || salary <= 0) {
-        alert("请输入有效的月薪金额");
+        alert("请输入有效月薪");
         return;
       }
 
-      const perSecond = salary / (30 * 24 * 60 * 60); // 月薪除以2592000秒
-      total = 0;
+      const username = localStorage.getItem('username');
+      localStorage.setItem(`salary_${username}`, salary);
+      localStorage.setItem(`startTime_${username}`, Date.now());
+      startCounter();
+    }
+
+    function loadUserData() {
+      const username = localStorage.getItem('username');
+      if (!username) return;
+
+      document.getElementById('loginArea').style.display = 'none';
+      document.getElementById('mainArea').style.display = 'block';
+      document.getElementById('currentUser').innerText = username;
+
+      const savedSalary = localStorage.getItem(`salary_${username}`);
+      const savedStart = localStorage.getItem(`startTime_${username}`);
+
+      if (savedSalary) {
+        document.getElementById('salaryInput').value = savedSalary;
+        startCounter();
+      }
+    }
+
+    function startCounter() {
+      clearInterval(intervalId);
+      const username = localStorage.getItem('username');
+      const salary = parseFloat(localStorage.getItem(`salary_${username}`));
+      const startTime = parseInt(localStorage.getItem(`startTime_${username}`));
+      if (!salary || !startTime) return;
+
+      const perSecond = salary / (30 * 24 * 60 * 60);
+
       intervalId = setInterval(() => {
-        total += perSecond;
-        document.getElementById('output').innerText = `你现在已经赚了：¥${total.toFixed(2)}`;
+        const now = Date.now();
+        const secondsPassed = (now - startTime) / 1000;
+        const earned = perSecond * secondsPassed;
+        document.getElementById('output').innerText = `你现在已经赚了：¥${earned.toFixed(2)}`;
       }, 1000);
     }
+
+    // 页面加载时自动登录（如果有记录）
+    window.onload = function() {
+      if (localStorage.getItem('username')) {
+        login();
+      }
+    };
   </script>
 
 </body>
