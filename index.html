@@ -3,17 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <title>每秒薪水显示器</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-    input, button { font-size: 20px; padding: 5px; margin: 5px; }
-    h2 { font-size: 32px; margin-top: 30px; }
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 30px;
+    }
+    input, button, select {
+      font-size: 18px;
+      margin: 5px;
+      padding: 5px 10px;
+    }
+    #mainArea {
+      margin-top: 30px;
+    }
+    canvas {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
 
   <h1>💰 实时每秒薪水显示器</h1>
 
-  <!-- 登录/注册区域 -->
+  <!-- 登录区域 -->
   <div id="loginArea">
     <p>请输入用户名登录（无需密码）：</p>
     <input type="text" id="usernameInput" placeholder="用户名">
@@ -27,10 +41,25 @@
     <button onclick="setSalary()">更新月薪</button>
 
     <h2 id="output">你现在已经赚了：¥0.00</h2>
+
+    <h3>📈 收入趋势图</h3>
+    <label>选择时间尺度：</label>
+    <select id="scaleSelector" onchange="resetChart()">
+      <option value="second">每秒</option>
+      <option value="minute">每分钟</option>
+      <option value="hour">每小时</option>
+      <option value="day">每天</option>
+      <option value="month">每月</option>
+    </select>
+    <canvas id="salaryChart" width="600" height="300"></canvas>
   </div>
 
   <script>
     let intervalId;
+    let chart;
+    let chartData = [];
+    let chartLabels = [];
+    let scale = 'second';
 
     function login() {
       const username = document.getElementById('usernameInput').value.trim();
@@ -42,6 +71,7 @@
       document.getElementById('currentUser').innerText = username;
 
       loadUserData();
+      initChart();
     }
 
     function setSalary() {
@@ -52,8 +82,15 @@
       }
 
       const username = localStorage.getItem('username');
-      localStorage.setItem(`salary_${username}`, salary);
-      localStorage.setItem(`startTime_${username}`, Date.now());
+      const userData = {
+        salary: salary,
+        startTime: Date.now(),
+        scale: scale,
+        chartData: [],
+        chartLabels: []
+      };
+
+      localStorage.setItem(`user_${username}`, JSON.stringify(userData));
       startCounter();
     }
 
@@ -61,43 +98,115 @@
       const username = localStorage.getItem('username');
       if (!username) return;
 
-      document.getElementById('loginArea').style.display = 'none';
-      document.getElementById('mainArea').style.display = 'block';
-      document.getElementById('currentUser').innerText = username;
-
-      const savedSalary = localStorage.getItem(`salary_${username}`);
-      const savedStart = localStorage.getItem(`startTime_${username}`);
-
-      if (savedSalary) {
-        document.getElementById('salaryInput').value = savedSalary;
+      const data = JSON.parse(localStorage.getItem(`user_${username}`));
+      if (data && data.salary) {
+        document.getElementById('salaryInput').value = data.salary;
+        scale = data.scale || 'second';
+        document.getElementById('scaleSelector').value = scale;
+        chartData = data.chartData || [];
+        chartLabels = data.chartLabels || [];
         startCounter();
       }
     }
 
     function startCounter() {
       clearInterval(intervalId);
-      const username = localStorage.getItem('username');
-      const salary = parseFloat(localStorage.getItem(`salary_${username}`));
-      const startTime = parseInt(localStorage.getItem(`startTime_${username}`));
-      if (!salary || !startTime) return;
 
-      const perSecond = salary / (30 * 24 * 60 * 60);
+      const username = localStorage.getItem('username');
+      const userData = JSON.parse(localStorage.getItem(`user_${username}`));
+      if (!userData || !userData.salary || !userData.startTime) return;
+
+      const perSecond = userData.salary / (30 * 24 * 60 * 60);
 
       intervalId = setInterval(() => {
         const now = Date.now();
-        const secondsPassed = (now - startTime) / 1000;
+        const secondsPassed = (now - userData.startTime) / 1000;
         const earned = perSecond * secondsPassed;
+
         document.getElementById('output').innerText = `你现在已经赚了：¥${earned.toFixed(2)}`;
+        updateChart(earned);
+
+        // 保存最新 chartData
+        const updatedData = {
+          ...userData,
+          scale: scale,
+          chartData: chartData,
+          chartLabels: chartLabels
+        };
+        localStorage.setItem(`user_${username}`, JSON.stringify(updatedData));
       }, 1000);
     }
 
-    // 页面加载时自动登录（如果有记录）
-    window.onload = function() {
+    function initChart() {
+      const ctx = document.getElementById('salaryChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: chartLabels,
+          datasets: [{
+            label: '累计收入 (¥)',
+            data: chartData,
+            fill: false,
+            borderColor: 'green',
+            tension: 0.2
+          }]
+        },
+        options: {
+          animation: false,
+          scales: {
+            x: { title: { display: true, text: '时间' } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function updateChart(earned) {
+      const now = new Date();
+      let label;
+      switch (scale) {
+        case 'second': label = now.toLocaleTimeString(); break;
+        case 'minute': label = now.getHours() + ':' + now.getMinutes(); break;
+        case 'hour': label = now.getHours() + '时'; break;
+        case 'day': label = now.toLocaleDateString(); break;
+        case 'month': label = now.getFullYear() + '-' + (now.getMonth() + 1); break;
+      }
+
+      chartLabels.push(label);
+      chartData.push(earned);
+
+      if (chartLabels.length > 30) {
+        chartLabels.shift();
+        chartData.shift();
+      }
+
+      chart.update();
+    }
+
+    function resetChart() {
+      scale = document.getElementById('scaleSelector').value;
+      chartLabels = [];
+      chartData = [];
+      chart.data.labels = chartLabels;
+      chart.data.datasets[0].data = chartData;
+      chart.update();
+
+      const username = localStorage.getItem('username');
+      const userData = JSON.parse(localStorage.getItem(`user_${username}`));
+      if (userData) {
+        userData.scale = scale;
+        userData.chartData = chartData;
+        userData.chartLabels = chartLabels;
+        localStorage.setItem(`user_${username}`, JSON.stringify(userData));
+      }
+    }
+
+    // 页面加载自动登录
+    window.onload = function () {
       if (localStorage.getItem('username')) {
         login();
       }
     };
   </script>
-
 </body>
 </html>
