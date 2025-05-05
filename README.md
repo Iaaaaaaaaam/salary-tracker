@@ -6,7 +6,7 @@ Track your money by second
 
 ## 🚀 在线体验
 
-👉 [点击这里使用](https://你的用户名.github.io/salary-tracker/)（部署后将自动生效）
+👉 [点击这里使用](https://Iaaaaaaaaam.github.io/salary-tracker/)（部署后将自动生效）
 
 ## 📷 功能预览
 
